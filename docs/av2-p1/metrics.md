@@ -139,7 +139,7 @@ amostra sintética capturada nesta fase. Para o arquivo vivo, trocar o caminho p
 from pathlib import Path
 import pandas as pd
 
-path = Path("docs/av2/evidence/phase-3/inference-sample.jsonl")
+path = Path("docs/av2-p1/evidence/phase-3/inference-sample.jsonl")
 frame = pd.read_json(path, lines=True)
 latency = pd.Series(dtype="float64")
 if not frame.empty:

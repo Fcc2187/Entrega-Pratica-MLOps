@@ -1,4 +1,6 @@
-# AV2 — escopo e decisões propostas
+# AV2 (Parte 1) — escopo e decisões propostas
+
+> Nota: na branch `av2-p2`, esta pasta foi renomeada de `docs/av2/` para `docs/av2-p1/` para distinguir da entrega da Parte 2 em [`docs/av2-p2/`](../av2-p2/).
 
 Data: 10/11/2026. Branch observada: `av2`.
 Status atual — fases 0 a 7 concluídas. [Parecer técnico](review.md).
@@ -273,7 +275,7 @@ Não acrescentar score comercial, renda atual ou decisão de elegibilidade ao co
 | Usar um escritor para `inference.jsonl` | Configuração e topologia efetivas no comando CLI |
 | Aproveitar métricas nativas | Resposta de `/metrics`, nomes, labels e unidade reais |
 | Preservar previsões e validação | Baseline atual com instalação frozen, pytest e Ruff |
-| Manter histórico da AV1 | Limitar alterações de documentação nova a `docs/av2/` nesta fase |
+| Manter histórico da AV1 | Limitar alterações de documentação nova a `docs/av2-p1/` nesta fase |
 
 Não há impedimento de escopo para a continuação. Ausência de runtime verificado é
 uma pendência da fase 1, não prova de defeito no serviço. A fase 0 termina aqui;

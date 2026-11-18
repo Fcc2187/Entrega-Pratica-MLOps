@@ -47,13 +47,13 @@ Os caminhos abaixo são planejados. O estado executado de cada fase fica no chec
 | `tests/test_e2e.py` | Ampliar: arquivo real, métricas, concorrência e reinício |
 | `scripts/generate_load.py` | Criar: carga HTTP determinística, sem treinar nem iniciar servidor |
 | `tests/test_generate_load.py` | Criar: sequência de carga e contabilização de desfechos |
-| `docs/av2/metrics.md` | Criar: leitura das métricas, cálculos, boxplot e retenção |
-| `docs/av2/log-format.md` | Criar: dicionário final do JSONL e ligação com o negócio |
-| `docs/av2/evidence/` | Criar na demonstração: capturas reais e roteiro executado |
+| `docs/av2-p1/metrics.md` | Criar: leitura das métricas, cálculos, boxplot e retenção |
+| `docs/av2-p1/log-format.md` | Criar: dicionário final do JSONL e ligação com o negócio |
+| `docs/av2-p1/evidence/` | Criar na demonstração: capturas reais e roteiro executado |
 | `README.md` | Alterar: caminho completo do clone à observação do log |
 | `.env.example`, `.gitignore` | Alterar: configuração do caminho e exclusão de dados gerados |
 | `Dockerfile`, `justfile`, `.github/workflows/ci.yml` | Alterar: diretório/volume de logs, receitas e CI da branch |
-| `docs/av2/analise-metricas.xlsx` | Opcional: planilha com dados reais, fórmulas e boxplot |
+| `docs/av2-p1/analise-metricas.xlsx` | Opcional: planilha com dados reais, fórmulas e boxplot |
 
 ## Visão geral
 
@@ -114,7 +114,7 @@ do ambiente e retomada no baseline; logging de entrada/saída permanece pendente
 
 ## Fase 2 — logging de inferência
 
-**Criar:** `monitoring.py`, `tests/test_monitoring.py`, `docs/av2/log-format.md`.
+**Criar:** `monitoring.py`, `tests/test_monitoring.py`, `docs/av2-p1/log-format.md`.
 **Alterar:** `service.py`, testes de serviço, `.env.example`, `.gitignore`.
 Integração necessária: preparar diretório gravável no Dockerfile e excluir logs do
 contexto Docker. Volume e validação real do container continuam na fase 5.
@@ -147,7 +147,7 @@ health/metrics excluídos. A fase 3 e as demais permanecem pendentes.
 ## Fase 3 — métricas e interpretação
 
 **Alterar:** testes E2E e configuração de serviço apenas se necessário.
-**Criar:** `docs/av2/metrics.md`.
+**Criar:** `docs/av2-p1/metrics.md`.
 
 **Consome:** `/metrics` nativo observado na fase 1 e JSONL da fase 2.
 **Produz:** nomes reais das séries, duas coletas comparáveis e método de cálculo.
@@ -158,7 +158,7 @@ health/metrics excluídos. A fase 3 e as demais permanecem pendentes.
 - [x] Documentar unidades, soma, contagem, labels e limites reais dos buckets em [metrics.md](metrics.md).
 - [x] Explicar diferenças de buckets, média ponderada, taxas HTTP/servidor, zero tráfego como N/A e reset como nova janela.
 - [x] Documentar boxplot a partir do JSONL e quartis lineares, distinguindo observações individuais de estimativas por buckets.
-- [x] Separar exemplos didáticos de aritmética dos valores reais, com capturas versionadas em `docs/av2/evidence/phase-3/`.
+- [x] Separar exemplos didáticos de aritmética dos valores reais, com capturas versionadas em `docs/av2-p1/evidence/phase-3/`.
 - [x] Verificar dois ciclos do servidor real e reset; suíte completa com 59 testes passou; revisão independente e checkpoint registrados.
 
 **Aceite:** métricas mudam com carga real; guia permite interpretar histogramas,
@@ -245,7 +245,7 @@ no serviço local. A execução Docker e a CI remota aguardam verificação.
 
 ## Fase 6 — README, evidências e material de apoio
 
-**Alterar:** README principal. **Criar:** evidências em `docs/av2/evidence/`.
+**Alterar:** README principal. **Criar:** evidências em `docs/av2-p1/evidence/`.
 **Consome:** comandos e resultados reais das fases anteriores.
 
 - [x] Escrever README com propósito, evolução AV1/AV2, Python/uv, clone, instalação frozen, startup, payloads, erro esperado e troubleshooting.
@@ -265,7 +265,7 @@ estão em [phase-6](evidence/phase-6/summary.json).
 
 ## Fase 7 — auditoria, correções e verificação final
 
-**Criar:** `docs/av2/review.md`; atualizar checkpoints.
+**Criar:** `docs/av2-p1/review.md`; atualizar checkpoints.
 
 - [x] Confrontar cada linha da matriz do escopo com arquivo, comando e evidência correspondente.
 - [x] Classificar achados por impacto na demonstração e na cobertura do enunciado.

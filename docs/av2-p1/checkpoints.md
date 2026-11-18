@@ -1,4 +1,6 @@
-# AV2 — checkpoints
+# AV2 (Parte 1) — checkpoints
+
+> Nota: na branch `av2-p2`, os arquivos históricos da Parte 1 passaram de `docs/av2/` para `docs/av2-p1/`; os registros da Parte 2 ficam em [`docs/av2-p2/`](../av2-p2/).
 
 Este histórico é da AV2. Os checkpoints originais da AV1 podem ser consultados
 no histórico do Git. [Registro de uso de IA da AV1](../documentacao-IA.md).
@@ -14,7 +16,7 @@ no histórico do Git. [Registro de uso de IA da AV1](../documentacao-IA.md).
   fase 4, cobrindo toda a continuação (fases 4–7), conforme esclarecimento do usuário. A entrevista ainda não aconteceu e nenhuma memória da skill foi criada.
 - Clarificados filtros de análise, critérios da planilha e limites das respostas
   de erro registradas. README executável e carga permanecem pendências obrigatórias.
-- O [plano canônico](fases.md) está em `docs/av2/`. A etapa R permanece como
+- O [plano canônico](fases.md) está em `docs/av2-p1/`. A etapa R permanece como
   proposta de avaliação da skill, separada do aceite técnico.
 
 ## Preparação — elaboração do planejamento
@@ -33,9 +35,9 @@ Estado: planejamento elaborado; implementação não iniciada.
 
 ### Arquivos criados
 
-- `docs/av2/escopo.md`: requisitos, decisões propostas, dados, métricas e preservação.
-- `docs/av2/fases.md`: tarefas, interfaces, arquivos, verificações e critérios de aceite.
-- `docs/av2/checkpoints.md`: este registro e formato das próximas atualizações.
+- `docs/av2-p1/escopo.md`: requisitos, decisões propostas, dados, métricas e preservação.
+- `docs/av2-p1/fases.md`: tarefas, interfaces, arquivos, verificações e critérios de aceite.
+- `docs/av2-p1/checkpoints.md`: este registro e formato das próximas atualizações.
 
 ### Verificações desta etapa
 
@@ -94,9 +96,9 @@ Estado: concluída por análise estática, conforme solicitação de executar so
 
 ### Arquivos alterados
 
-- `docs/av2/escopo.md`: estado da fase 0, arquitetura, contrato, evidências e dependências.
-- `docs/av2/fases.md`: fase 0 concluída e demais fases mantidas pendentes.
-- `docs/av2/checkpoints.md`: preparação histórica separada deste checkpoint de execução.
+- `docs/av2-p1/escopo.md`: estado da fase 0, arquitetura, contrato, evidências e dependências.
+- `docs/av2-p1/fases.md`: fase 0 concluída e demais fases mantidas pendentes.
+- `docs/av2-p1/checkpoints.md`: preparação histórica separada deste checkpoint de execução.
 
 ### Decisões e justificativas
 
@@ -163,10 +165,10 @@ Estado: concluída, após retomada solicitada pelo usuário depois de reiniciar 
 
 ### Arquivos alterados
 
-- `docs/av2/phase-1-baseline.md`: ambiente, comandos, resultados, integração e retomada.
-- `docs/av2/fases.md`: fase 1 concluída e checklist atualizado.
-- `docs/av2/escopo.md`: estado atual e referência ao baseline.
-- `docs/av2/checkpoints.md`: este registro.
+- `docs/av2-p1/phase-1-baseline.md`: ambiente, comandos, resultados, integração e retomada.
+- `docs/av2-p1/fases.md`: fase 1 concluída e checklist atualizado.
+- `docs/av2-p1/escopo.md`: estado atual e referência ao baseline.
+- `docs/av2-p1/checkpoints.md`: este registro.
 - Arquivos de ambiente e sondagens permanecem ignorados em `.venv/` e `.bentoml/`.
 
 ### Comandos e resultados observados
@@ -219,12 +221,12 @@ Estado: concluída. Base: `b262b18`, branch `av2`; árvore limpa ao iniciar.
 - Criados testes permanentes de logging e fixture ASGI compartilhada para não
   duplicar séries Prometheus ao criar stacks BentoML na mesma suíte.
 - Adicionados diretório Docker gravável e exclusão de logs no Git/contexto Docker.
-- Criado `docs/av2/log-format.md`; atualizado estado do plano e escopo.
+- Criado `docs/av2-p1/log-format.md`; atualizado estado do plano e escopo.
 
 ### Arquivos
 
 - Criados: `src/careerpath/monitoring.py`, `tests/conftest.py`,
-  `tests/test_monitoring.py`, `docs/av2/log-format.md`.
+  `tests/test_monitoring.py`, `docs/av2-p1/log-format.md`.
 - Alterados: `src/careerpath/service.py`, `tests/test_service.py`, `.env.example`,
   `.gitignore`, `.dockerignore`, `Dockerfile` e os três documentos de acompanhamento AV2.
 - Sem alteração no modelo, treinamento, schema, dependências ou lock.
@@ -283,16 +285,16 @@ Estado: concluída. Base: `57396e5`, branch `av2`; árvore limpa ao iniciar.
 - Comprovado reset: cada ciclo iniciou com contadores de predict em zero, inclusive
   o segundo depois de o primeiro acumular dois pedidos.
 - Isolado o destino do log do E2E em `tmp_path`, sem gravar no log de uso manual.
-- Criado guia `docs/av2/metrics.md` com coleta, fórmulas, quartis/boxplot, casos sem
+- Criado guia `docs/av2-p1/metrics.md` com coleta, fórmulas, quartis/boxplot, casos sem
   tráfego, erros, retenção e exemplos didáticos separados de resultados reais.
-- Salvas capturas e eventos sintéticos em `docs/av2/evidence/phase-3/`.
+- Salvas capturas e eventos sintéticos em `docs/av2-p1/evidence/phase-3/`.
 
 ### Arquivos
 
 - Alterado: `tests/test_e2e.py`, além dos documentos de acompanhamento AV2.
-- Criados: `docs/av2/metrics.md`; evidências `metrics-0-before.prom`,
+- Criados: `docs/av2-p1/metrics.md`; evidências `metrics-0-before.prom`,
   `metrics-0-after.prom`, `metrics-1-before.prom`, `metrics-summary.json` e
-  `inference-sample.jsonl` em `docs/av2/evidence/phase-3/`.
+  `inference-sample.jsonl` em `docs/av2-p1/evidence/phase-3/`.
 - Sem alterações no código da aplicação, configuração de runtime, dependências,
   lock, modelo ou contrato de inferência.
 

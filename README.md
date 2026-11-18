@@ -29,7 +29,8 @@ sintética reproduzível ao serviço da AV1.
 - [Fluxograma da lógica](#fluxograma-da-lógica)
 - [Primeira execução](#primeira-execução)
 - [Contrato HTTP e exemplos](#contrato-http-e-exemplos)
-- [Demonstração da AV2](#demonstração-da-av2)
+- [Demonstração da AV2 (Parte 1)](#demonstração-da-av2-parte-1)
+- [Monitoramento estatístico e drift (AV2 Parte 2)](#monitoramento-estatístico-e-drift-av2-parte-2)
 - [Qualidade, Docker e CI](#qualidade-docker-e-ci)
 - [Modelo, dados e limitações](#modelo-dados-e-limitações)
 - [Solução de problemas](#solução-de-problemas)
@@ -184,7 +185,7 @@ curl -X POST http://127.0.0.1:3000/predict -H 'Content-Type: application/json' -
 curl -i -X POST http://127.0.0.1:3000/predict -H 'Content-Type: application/json' --data-binary @examples/invalid.json
 ```
 
-## Demonstração da AV2
+## Demonstração da AV2 (Parte 1)
 
 Com o serviço rodando, use o segundo terminal na raiz. Em cada lote, salve
 uma captura de `/metrics` antes e depois da carga. Use a mesma instância para
@@ -236,9 +237,23 @@ Para análise, use eventos com `outcome=success` e `input_capture=complete`
 nas distribuições de entrada e saída. Use os buckets cumulativos para
 construir o histograma e as latências individuais do JSONL para calcular
 o boxplot. Os cálculos, unidades e casos de reset estão no [guia de
-métricas](docs/av2/metrics.md). Veja também o [formato do
-log](docs/av2/log-format.md), o [guia de carga](docs/av2/load.md) e o
-[roteiro da demonstração](docs/av2/demonstracao.md).
+métricas](docs/av2-p1/metrics.md). Veja também o [formato do
+log](docs/av2-p1/log-format.md), o [guia de carga](docs/av2-p1/load.md) e o
+[roteiro da demonstração](docs/av2-p1/demonstracao.md).
+
+## Monitoramento estatístico e drift (AV2 Parte 2)
+
+Na branch `av2-p2`, a Parte 2 acrescenta benchmark não paramétrico de latência (`p90`, `p95`, `p99`, verificação de SLA `p95 < 400 ms`, boxplot e gráfico de violino), submissão de conjuntos de Referência (`adult.data`) e Produção (`adult.test` com drift realista controlado) ao serviço BentoML, cálculo de **PSI** em `occupation` (com `null` explícito) e **KS** em `probability_above_50k`, além de dashboard interativo em Streamlit.
+
+Com o serviço rodando na porta `3000`:
+
+```powershell
+uv run --frozen python scripts/part2_collect.py --url http://127.0.0.1:3000 --count 500 --benchmark-count 500 --seed 42
+uv run --frozen python scripts/part2_report.py --evidence-dir docs/av2-p2/evidence --sla-ms 400
+uv run --frozen streamlit run scripts/dashboard.py
+```
+
+Para executar offline sobre as evidências versionadas, rode apenas `part2_report.py` ou `streamlit run scripts/dashboard.py`. Consulte o [manual completo da Parte 2](docs/av2-p2/parte-2-manual.md) e o [relatório com resultados reais](docs/av2-p2/parte-2-relatorio.md).
 
 ## Qualidade, Docker e CI
 
@@ -261,6 +276,9 @@ just sync
 just serve
 just check
 just demo
+just part2-collect
+just part2-report
+just dashboard
 ```
 
 `just demo` sincroniza o ambiente e executa o E2E real. As receitas são atalhos
@@ -270,7 +288,7 @@ para os comandos acima; o README continua executável sem instalar `just`.
 
 Em um ambiente com Docker Linux, use a imagem `careerpath-mlops:av2` e
 um volume nomeado em `/app/logs`. O build e a persistência do volume nesta
-versão aguardam validação em máquina com Docker. [Guia Docker](docs/av2/docker.md).
+versão aguardam validação em máquina com Docker. [Guia Docker](docs/av2-p1/docker.md).
 
 ### CI
 
@@ -311,12 +329,13 @@ Limitações importantes:
 ## Estrutura do repositório
 
 ```text
-src/careerpath/     treino, schema, modelo, serviço BentoML e monitoramento
+src/careerpath/     treino, schema, modelo, serviço BentoML, monitoramento e analytics
 models/             pipeline versionado e metadata
 examples/           três requests válidos e um inválido
-tests/              testes unitários, HTTP e E2E
-scripts/            download explícito do dataset e geração de carga sintética
-docs/av2/           guias, evidências, plano, checkpoints e parecer da AV2
+tests/              testes unitários, HTTP, E2E e dashboard
+scripts/            download do dataset, carga sintética, coleta/relatório Parte 2 e Streamlit
+docs/av2-p1/        guias, evidências, plano, checkpoints e parecer da AV2 (Parte 1)
+docs/av2-p2/        relatório, manual, checkpoints e evidências offline da AV2 (Parte 2)
 ```
 
 ## Solução de problemas
@@ -335,14 +354,12 @@ docs/av2/           guias, evidências, plano, checkpoints e parecer da AV2
 O código está sob [MIT](LICENSE). A licença do código não substitui os termos da
 fonte de dados UCI.
 
-O Codex apoiou análise do enunciado, implementação, testes, revisão e
-documentação. Os comandos e resultados observados estão nos
-[checkpoints](docs/av2/checkpoints.md). O [histórico de uso de IA da
-AV1](docs/documentacao-IA.md) registra a preparação anterior. Consulte o
+Os comandos e resultados observados estão nos [checkpoints da Parte 1](docs/av2-p1/checkpoints.md) e nos [checkpoints da Parte 2](docs/av2-p2/checkpoints.md). O [histórico de uso de IA da
+AV1](docs/documentacao-IA.md) registra a preparação anterior e a continuidade da AV2. Consulte o
 [entendimento de negócio](Entendimento%20de%20neg%C3%B3cio.docx.pdf) para
-o contexto do proxy, o [escopo da AV2](docs/av2/escopo.md) para a rubrica e
-o [plano](docs/av2/fases.md) para os critérios de cada fase.
+o contexto do proxy, o [escopo da AV2 (Parte 1)](docs/av2-p1/escopo.md), o [relatório da Parte 2](docs/av2-p2/parte-2-relatorio.md) e
+o [manual da Parte 2](docs/av2-p2/parte-2-manual.md).
 
-O [guia de revisão](docs/av2/revisao-plano.md) orienta a segunda revisão
-da equipe. O [parecer](docs/av2/review.md) registra o resultado e as
+O [guia de revisão](docs/av2-p1/revisao-plano.md) orienta a segunda revisão
+da equipe. O [parecer](docs/av2-p1/review.md) registra o resultado e as
 limitações da validação executada.
