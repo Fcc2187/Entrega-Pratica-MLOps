@@ -21,6 +21,15 @@ demo: sync
 load scenario="baseline" count="100" invalid_every="0":
     uv run --frozen python scripts/generate_load.py --scenario {{scenario}} --count {{count}} --invalid-every {{invalid_every}}
 
+part2-collect url="http://127.0.0.1:3000" count="500":
+    uv run --frozen python scripts/part2_collect.py --url {{url}} --count {{count}} --benchmark-count {{count}}
+
+part2-report sla_ms="400":
+    uv run --frozen python scripts/part2_report.py --sla-ms {{sla_ms}}
+
+dashboard:
+    uv run --frozen streamlit run scripts/dashboard.py
+
 docker-build:
     docker build --tag careerpath-mlops:av2 .
 
