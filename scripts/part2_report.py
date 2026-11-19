@@ -64,17 +64,19 @@ def generate_part2_report(
     }
 
     build_latency_boxplot_figure(client_latencies, client_latency_stats).savefig(
-        artifacts["latency_boxplot"], dpi=150
+        artifacts["latency_boxplot"], dpi=150, facecolor="#ffffff"
     )
     build_latency_violin_figure(client_latencies, client_latency_stats).savefig(
-        artifacts["latency_violin"], dpi=150
+        artifacts["latency_violin"], dpi=150, facecolor="#ffffff"
     )
     build_latency_overview_figure(client_latencies, client_latency_stats).savefig(
-        artifacts["latency_overview"], dpi=150
+        artifacts["latency_overview"], dpi=150, facecolor="#ffffff"
     )
-    build_psi_figure(drift["primary_input"]).savefig(artifacts["drift_psi"], dpi=150)
+    build_psi_figure(drift["primary_input"]).savefig(
+        artifacts["drift_psi"], dpi=150, facecolor="#ffffff"
+    )
     build_ks_figure(ref_probs, prod_probs, drift["primary_output"]).savefig(
-        artifacts["drift_ks"], dpi=150
+        artifacts["drift_ks"], dpi=150, facecolor="#ffffff"
     )
 
     report = {

@@ -1,7 +1,8 @@
-"""Interactive Streamlit dashboard for CareerPath AV2 Part 2 latency and drift monitoring."""
+"""Interactive Streamlit observability dashboard for CareerPath AV2 Part 2."""
 
 from __future__ import annotations
 
+import html
 import os
 from collections.abc import Mapping
 from pathlib import Path
@@ -28,8 +29,34 @@ from careerpath.analytics import (
     load_jsonl_records,
 )
 
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+STYLES_PATH = PROJECT_ROOT / "assets" / "styles.css"
 DEFAULT_EVIDENCE_DIR = Path("docs/av2-p2/evidence")
 DEFAULT_INFERENCE_LOG = Path("logs/inference.jsonl")
+
+_ICON_BRAND = (
+    '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">'
+    '<rect x="1.5" y="9" width="3" height="5.5" rx="0.6" fill="currentColor"/>'
+    '<rect x="6.5" y="5.5" width="3" height="9" rx="0.6" fill="currentColor"/>'
+    '<rect x="11.5" y="1.5" width="3" height="13" rx="0.6" fill="currentColor"/>'
+    "</svg>"
+)
+
+_ICON_WAVE = (
+    '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" '
+    'stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+    '<polyline points="1 9 4 9 6 3 9.5 13 11.5 9 15 9"/>'
+    "</svg>"
+)
+
+_ICON_TAIL = (
+    '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" '
+    'stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+    '<line x1="1.5" y1="8" x2="10.5" y2="8"/>'
+    '<rect x="3.5" y="4.5" width="4.5" height="7" rx="0.8"/>'
+    '<circle cx="13.5" cy="8" r="1.4" fill="currentColor" stroke="none"/>'
+    "</svg>"
+)
 
 
 def _fmt_ms(value: object) -> str:
@@ -38,6 +65,22 @@ def _fmt_ms(value: object) -> str:
 
 def _fmt_num(value: object, digits: int = 4) -> str:
     return f"{value:.{digits}f}" if isinstance(value, int | float) else "N/A"
+
+
+def _severity_variant(severity: str) -> str:
+    if severity.startswith("Estável"):
+        return "ok"
+    if severity.startswith("Atenção"):
+        return "warn"
+    if severity.startswith("Alerta"):
+        return "alert"
+    return "neutral"
+
+
+def _inject_styles() -> None:
+    if STYLES_PATH.is_file():
+        css = STYLES_PATH.read_text(encoding="utf-8")
+        st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
 
 
 def _default_evidence_dir() -> Path:
@@ -106,158 +149,431 @@ def _latency_metric_rows(stats: Mapping[str, object], sla_ms: float) -> list[tup
     ]
 
 
-def _render_latency_tab(
-    bench_records: list[dict[str, object]],
-    server_latencies: list[float] | None,
-    sla_ms: float,
-) -> None:
-    latencies = extract_numeric_column(bench_records, "client_latency_ms")
-    stats = compute_latency_stats(latencies, sla_ms=sla_ms)
-    if stats["count"] == 0:
-        st.info("Nenhuma observação de latência disponível no arquivo de benchmark.")
-        return
-
-    sla_ok = bool(stats["sla_passed"])
-    sla_label = "APROVADO" if sla_ok else "VIOLADO"
-
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Pedidos analisados", str(stats["count"]))
-    c2.metric("Mediana (p50)", _fmt_ms(stats["median_ms"]))
-    c3.metric("p90", _fmt_ms(stats["p90_ms"]))
-
-    c4, c5 = st.columns(2)
-    c4.metric(
-        f"p95 (SLA < {sla_ms:.0f} ms)",
-        _fmt_ms(stats["p95_ms"]),
-        delta=f"{sla_label} (+{stats['sla_margin_ms']:.2f} ms)"
-        if sla_ok
-        else f"{sla_label} ({stats['sla_margin_ms']:.2f} ms)",
-        delta_color="normal" if sla_ok else "inverse",
-    )
-    c5.metric("p99", _fmt_ms(stats["p99_ms"]))
-
-    st.subheader("Boxplot e Gráfico de Violino (POST /predict)")
-    overview_fig = build_latency_overview_figure(latencies, stats, title_prefix="POST /predict")
-    st.pyplot(
-        overview_fig,
-        width="stretch",
-        alt=(
-            f"Boxplot e gráfico de violino da latência de {stats['count']} pedidos: "
-            f"mediana {_fmt_ms(stats['median_ms'])}, p95 {_fmt_ms(stats['p95_ms'])}, "
-            f"p99 {_fmt_ms(stats['p99_ms'])}."
-        ),
-    )
-
-    with st.expander("Visualizar Boxplot e Gráfico de Violino separadamente"):
-        col_left, col_right = st.columns(2)
-        with col_left:
-            st.pyplot(
-                build_latency_boxplot_figure(latencies, stats),
-                width="stretch",
-                alt="Boxplot isolado da latência do endpoint /predict.",
-            )
-        with col_right:
-            st.pyplot(
-                build_latency_violin_figure(latencies, stats),
-                width="stretch",
-                alt="Gráfico de violino isolado da latência do endpoint /predict.",
-            )
-
-    summary_rows = [
-        {"Métrica": label, "Cliente HTTP": value}
-        for label, value in _latency_metric_rows(stats, sla_ms)
-    ]
-    if server_latencies:
-        server_stats = compute_latency_stats(server_latencies, sla_ms=sla_ms)
-        for row, (_, server_value) in zip(
-            summary_rows, _latency_metric_rows(server_stats, sla_ms), strict=True
-        ):
-            row["Log Servidor (ASGI)"] = server_value
-
-    st.subheader("Tabela de estatísticas não paramétricas")
-    st.dataframe(pd.DataFrame(summary_rows), width="stretch", hide_index=True)
-
+def _render_section_head(index: str, title: str, meta: str = "", *, first: bool = False) -> None:
+    cls = "cp-section-head cp-section-head--first" if first else "cp-section-head"
+    meta_html = f'<span class="cp-section-head__meta">{html.escape(meta)}</span>' if meta else ""
     st.markdown(
-        "**Interpretação:** o boxplot resume quartis, dispersão interquartil (IQR) e valores "
-        "extremos além dos bigodes de Tukey (`Q3 + 1,5 × IQR`), enquanto o gráfico de violino "
-        "revela a densidade completa dos tempos de resposta (concentração próxima à mediana e "
-        "cauda longa capturada por p95 e p99)."
+        f'<div class="{cls} cp-anim">'
+        f'<h2 class="cp-section-head__title">'
+        f'<span class="cp-section-head__index">{html.escape(index)}</span>'
+        f"{html.escape(title)}</h2>"
+        f"{meta_html}"
+        f"</div>",
+        unsafe_allow_html=True,
     )
 
 
-def _render_status_banner(title: str, severity: str) -> None:
-    text = f"**{title}:** {severity}"
-    if severity.startswith("Estável"):
-        st.success(text)
-    elif severity.startswith("Atenção"):
-        st.warning(text)
-    elif severity.startswith("Alerta"):
-        st.error(text)
+def _render_header(
+    *,
+    request_count: int | None,
+    ref_count: int | None,
+    prod_count: int | None,
+    sla_ms: float,
+    sla_passed: bool | None,
+    p95_ms: float | None,
+    model_version: str,
+    server_count: int | None,
+) -> None:
+    if sla_passed is True:
+        pill_cls = "cp-status-pill cp-status-pill--ok"
+        pill_text = f"SLA p95 < {sla_ms:.0f} ms · APROVADO ({_fmt_ms(p95_ms)})"
+    elif sla_passed is False:
+        pill_cls = "cp-status-pill cp-status-pill--alert"
+        pill_text = f"SLA p95 < {sla_ms:.0f} ms · VIOLADO ({_fmt_ms(p95_ms)})"
     else:
-        st.info(text)
+        pill_cls = "cp-status-pill"
+        pill_text = f"SLA p95 < {sla_ms:.0f} ms · AGUARDANDO DADOS"
+
+    chips = []
+    if request_count is not None:
+        chips.append(("Pedidos HTTP", f"{request_count}"))
+    if ref_count is not None and prod_count is not None:
+        chips.append(("Ref / Prod", f"{ref_count} / {prod_count}"))
+    chips.append(("Modelo", model_version))
+    if server_count:
+        chips.append(("Log ASGI", f"{server_count} eventos"))
+
+    chips_html = "".join(
+        f'<span class="cp-meta-chip">'
+        f'<span class="cp-meta-chip__label">{html.escape(label)}</span>'
+        f"{html.escape(val)}</span>"
+        for label, val in chips
+    )
+    st.markdown(
+        '<header class="cp-header cp-anim">'
+        '<div class="cp-header__left">'
+        '<div class="cp-eyebrow">'
+        "<span>CAREERPATH MLOPS</span>"
+        '<span class="cp-eyebrow__sep">/</span>'
+        "<span>AV2 PARTE 2</span>"
+        '<span class="cp-eyebrow__sep">/</span>'
+        "<span>POST /predict</span>"
+        "</div>"
+        '<h1 class="cp-title">Observabilidade de Latência e Drift</h1>'
+        '<p class="cp-subtitle">'
+        "Percentis não paramétricos, verificação de SLA e estabilidade entre Referência e Produção."
+        "</p>"
+        "</div>"
+        '<div class="cp-header__right">'
+        f'<div class="{pill_cls}">'
+        '<span class="cp-live-dot" aria-hidden="true"></span>'
+        f"<span>{html.escape(pill_text)}</span>"
+        "</div>"
+        f'<div class="cp-meta-row">{chips_html}</div>'
+        "</div>"
+        "</header>",
+        unsafe_allow_html=True,
+    )
 
 
-def _render_drift_tab(
+def _render_panel_header(role: str, label: str, variable: str, severity: str) -> None:
+    variant = _severity_variant(severity)
+    st.markdown(
+        '<div class="cp-panel-header">'
+        '<div class="cp-panel-header__title">'
+        f'<span class="cp-panel-header__role">{html.escape(role)}</span>'
+        f'<span class="cp-panel-header__name">{html.escape(label)} '
+        f"<code>{html.escape(variable)}</code></span>"
+        "</div>"
+        f'<span class="cp-badge cp-badge--{variant}">'
+        '<span class="cp-badge__dot" aria-hidden="true"></span>'
+        f"{html.escape(severity)}"
+        "</span>"
+        "</div>",
+        unsafe_allow_html=True,
+    )
+
+
+def _render_overview_tab(
+    latencies: list[float],
+    latency_stats: Mapping[str, object],
+    server_latencies: list[float] | None,
     ref_records: list[dict[str, object]],
     prod_records: list[dict[str, object]],
-    *,
-    psi_watch: float = DEFAULT_PSI_WATCH,
-    psi_alert: float = DEFAULT_PSI_ALERT,
-    ks_alert_d: float = DEFAULT_KS_ALERT_D,
+    drift: Mapping[str, object],
+    sla_ms: float,
 ) -> None:
-    drift = compute_all_variable_drifts(
-        ref_records,
-        prod_records,
-        psi_watch=psi_watch,
-        psi_alert=psi_alert,
-        ks_alert_d=ks_alert_d,
+    # ------------------------------------------------------------ Bloco 1: Latência & SLA
+    _render_section_head(
+        "01",
+        "Latência e Conformidade de SLA",
+        f"Endpoint POST /predict · n = {latency_stats['count']}",
+        first=True,
     )
+
+    if latency_stats["count"] == 0:
+        st.info("Nenhuma observação de latência disponível no arquivo de benchmark.")
+    else:
+        sla_ok = bool(latency_stats["sla_passed"])
+        sla_label = "APROVADO" if sla_ok else "VIOLADO"
+        margin = float(latency_stats["sla_margin_ms"])
+        margin_txt = (
+            f"{sla_label} (+{margin:.2f} ms)" if sla_ok else f"{sla_label} ({margin:.2f} ms)"
+        )
+
+        k1, k2, k3, k4 = st.columns(4)
+        k1.metric(
+            "Mediana (p50)",
+            _fmt_ms(latency_stats["median_ms"]),
+            delta=f"IQR {_fmt_ms(latency_stats['iqr_ms'])}",
+            delta_color="off",
+        )
+        k2.metric(
+            "Percentil 90 (p90)",
+            _fmt_ms(latency_stats["p90_ms"]),
+            delta=f"Bigode sup. {_fmt_ms(latency_stats['upper_whisker_ms'])}",
+            delta_color="off",
+        )
+        k3.metric(
+            f"Percentil 95 · SLA < {sla_ms:.0f} ms",
+            _fmt_ms(latency_stats["p95_ms"]),
+            delta=margin_txt,
+            delta_color="normal" if sla_ok else "inverse",
+        )
+        k4.metric(
+            "Percentil 99 (p99)",
+            _fmt_ms(latency_stats["p99_ms"]),
+            delta=(
+                f"{latency_stats['outlier_count']} outliers · "
+                f"máx {latency_stats['max_ms']:.1f} ms"
+            ),
+            delta_color="off",
+        )
+
+        # -------------------------------------------------------- Bloco 2: Distribuição
+        _render_section_head(
+            "02",
+            "Distribuição de Latência (Boxplot e Violino)",
+            "Escala horizontal alinhada com limiar de SLA",
+        )
+
+        with st.container(border=True):
+            overview_fig = build_latency_overview_figure(
+                latencies, latency_stats, title_prefix="POST /predict"
+            )
+            st.pyplot(
+                overview_fig,
+                width="stretch",
+                alt=(
+                    f"Boxplot e violino da latência de {latency_stats['count']} pedidos: "
+                    f"mediana {_fmt_ms(latency_stats['median_ms'])}, "
+                    f"p95 {_fmt_ms(latency_stats['p95_ms'])}, "
+                    f"p99 {_fmt_ms(latency_stats['p99_ms'])}."
+                ),
+            )
+
+            q1 = _fmt_ms(latency_stats["q1_ms"])
+            med = _fmt_ms(latency_stats["median_ms"])
+            q3 = _fmt_ms(latency_stats["q3_ms"])
+            iqr = _fmt_ms(latency_stats["iqr_ms"])
+            whisker_hi = _fmt_ms(latency_stats["upper_whisker_ms"])
+            max_ms = _fmt_ms(latency_stats["max_ms"])
+            outliers = int(latency_stats["outlier_count"])
+            st.markdown(
+                '<div class="cp-note-grid">'
+                '<div class="cp-note-card">'
+                f'<div class="cp-note-card__title">{_ICON_WAVE}'
+                "<span>Assimetria e dispersão central</span></div>"
+                '<p class="cp-note-card__body">'
+                f"Metade das respostas concentra-se entre <code>{q1}</code> (Q1) e "
+                f"<code>{q3}</code> (Q3), com mediana em <code>{med}</code> e "
+                f"<code>IQR = {iqr}</code>. O violino revela a densidade KDE espelhada, "
+                "evidenciando a concentração central além do resumo de quartis."
+                "</p>"
+                "</div>"
+                '<div class="cp-note-card">'
+                f'<div class="cp-note-card__title">{_ICON_TAIL}'
+                "<span>Cauda longa e outliers de Tukey</span></div>"
+                '<p class="cp-note-card__body">'
+                f"O bigode superior alcança <code>{whisker_hi}</code>, isolando "
+                f"<code>{outliers}</code> observações extremas até <code>{max_ms}</code>. "
+                "Por isso contratos de SLA são avaliados sobre <code>p95</code> em vez da média."
+                "</p>"
+                "</div>"
+                "</div>",
+                unsafe_allow_html=True,
+            )
+
+        with st.expander("Gráficos isolados e tabela completa de estatísticas não paramétricas"):
+            col_left, col_right = st.columns(2)
+            with col_left:
+                st.pyplot(
+                    build_latency_boxplot_figure(latencies, latency_stats),
+                    width="stretch",
+                    alt="Boxplot isolado da latência do endpoint /predict.",
+                )
+            with col_right:
+                st.pyplot(
+                    build_latency_violin_figure(latencies, latency_stats),
+                    width="stretch",
+                    alt="Gráfico de violino isolado da latência do endpoint /predict.",
+                )
+
+            summary_rows = [
+                {"Métrica": label, "Cliente HTTP": value}
+                for label, value in _latency_metric_rows(latency_stats, sla_ms)
+            ]
+            if server_latencies:
+                server_stats = compute_latency_stats(server_latencies, sla_ms=sla_ms)
+                for row, (_, server_value) in zip(
+                    summary_rows, _latency_metric_rows(server_stats, sla_ms), strict=True
+                ):
+                    row["Log Servidor (ASGI)"] = server_value
+            st.dataframe(pd.DataFrame(summary_rows), width="stretch", hide_index=True)
+
+    # ------------------------------------------------------------ Bloco 3: Drift (Espelhado)
     psi_res = drift["primary_input"]
     ks_res = drift["primary_output"]
+    _render_section_head(
+        "03",
+        "Monitoramento de Drift (Entrada e Saída)",
+        "Referência em cinza neutro · Produção em destaque cobalto",
+    )
 
-    b1, b2 = st.columns(2)
-    with b1:
-        _render_status_banner(
-            f"Semáforo PSI ({PRIMARY_INPUT_VAR} = {_fmt_num(psi_res['psi'])})",
+    col_in, col_out = st.columns(2, gap="medium")
+
+    with col_in, st.container(border=True):
+        _render_panel_header(
+            "DATA DRIFT · ENTRADA (PSI)",
+            "Entrada",
+            PRIMARY_INPUT_VAR,
             str(psi_res["severity"]),
         )
-    with b2:
-        _render_status_banner(
-            f"Semáforo KS ({PRIMARY_OUTPUT_VAR} D = {_fmt_num(ks_res['ks_statistic'])})",
-            str(ks_res["severity"]),
+        m1, m2 = st.columns(2)
+        m1.metric(
+            f"PSI ({PRIMARY_INPUT_VAR})",
+            _fmt_num(psi_res["psi"]),
+            delta=f"{psi_res['category_count']} cat. · null ativo",
+            delta_color="off",
+        )
+        m2.metric(
+            "Amostras (Ref / Prod)",
+            f"{psi_res['n_reference']} / {psi_res['n_production']}",
+            delta=f"ε = {psi_res['epsilon']:.0e}",
+            delta_color="off",
+        )
+        st.pyplot(
+            build_psi_figure(psi_res, compact=True),
+            width="stretch",
+            alt=(
+                f"Comparação percentual por categoria de {PRIMARY_INPUT_VAR} "
+                "entre Referência e Produção."
+            ),
         )
 
-    k1, k2, k3, k4 = st.columns(4)
-    k1.metric(
-        f"PSI Entrada ({PRIMARY_INPUT_VAR})",
-        _fmt_num(psi_res["psi"]),
-        delta=str(psi_res["severity"]),
+    with col_out, st.container(border=True):
+        _render_panel_header(
+            "PREDICTION DRIFT · SAÍDA (KS)",
+            "Saída",
+            PRIMARY_OUTPUT_VAR,
+            str(ks_res["severity"]),
+        )
+        m3, m4 = st.columns(2)
+        m3.metric(
+            "Distância KS (D)",
+            _fmt_num(ks_res["ks_statistic"]),
+            delta=f"D crit (α=0,05): {_fmt_num(ks_res.get('critical_d_0_05'))}",
+            delta_color="off",
+        )
+        m4.metric(
+            "p-valor KS",
+            f"{ks_res['p_value']:.4g}" if isinstance(ks_res["p_value"], float) else "N/A",
+            delta=(
+                f"Δ mediana: {ks_res['median_shift']:+.4f}"
+                if isinstance(ks_res["median_shift"], float)
+                else None
+            ),
+            delta_color="off",
+        )
+        ref_probs = extract_numeric_column(ref_records, PRIMARY_OUTPUT_VAR)
+        prod_probs = extract_numeric_column(prod_records, PRIMARY_OUTPUT_VAR)
+        st.pyplot(
+            build_ks_figure(ref_probs, prod_probs, ks_res, compact=True),
+            width="stretch",
+            alt=f"ECDF e densidade comparada de {PRIMARY_OUTPUT_VAR} destacando distância KS.",
+        )
+
+    with st.expander("Visualizar curva completa δ(x) = |F_ref(x) - F_prod(x)| em tela larga"):
+        st.pyplot(
+            build_ks_figure(ref_probs, prod_probs, ks_res, compact=False),
+            width="stretch",
+            alt=f"Painel triplo KS (ECDF, delta e densidade) de {PRIMARY_OUTPUT_VAR}.",
+        )
+
+
+def _render_report_tab(
+    latency_stats: Mapping[str, object],
+    server_latencies: list[float] | None,
+    drift: Mapping[str, object],
+    sla_ms: float,
+) -> None:
+    psi_res = drift["primary_input"]
+    ks_res = drift["primary_output"]
+    supp = drift["supplementary"]
+
+    _render_section_head(
+        "04",
+        "Relatório Executivo e Conclusões",
+        "Síntese metodológica, SLA e estabilidade do contrato",
+        first=True,
+    )
+
+    alert_vars = sum(1 for row in supp if str(row["severity"]).startswith("Alerta"))
+    watch_vars = sum(1 for row in supp if str(row["severity"]).startswith("Atenção"))
+    sla_ok = bool(latency_stats["sla_passed"]) if latency_stats["sla_passed"] is not None else False
+    sla_margin = latency_stats.get("sla_margin_ms")
+
+    e1, e2, e3, e4 = st.columns(4)
+    e1.metric("Pedidos no benchmark", str(latency_stats["count"]))
+    e2.metric(
+        "Folga de SLA (p95)",
+        _fmt_ms(sla_margin),
+        delta="APROVADO" if sla_ok else "VIOLADO",
+        delta_color="normal" if sla_ok else "inverse",
+    )
+    e3.metric(
+        "Variáveis em alerta / atenção",
+        f"{alert_vars} / {watch_vars}",
+        delta=f"{len(supp)} variáveis avaliadas",
         delta_color="off",
     )
-    k2.metric("Amostras (Ref / Prod)", f"{psi_res['n_reference']} / {psi_res['n_production']}")
-    k3.metric(
-        f"KS Saída ({PRIMARY_OUTPUT_VAR})",
-        _fmt_num(ks_res["ks_statistic"]),
-        delta=f"D crit (α=0,05): {_fmt_num(ks_res.get('critical_d_0_05'))}",
-        delta_color="off",
-    )
-    k4.metric(
-        "p-valor KS / Deslocamento mediana",
-        f"{ks_res['p_value']:.4g}" if isinstance(ks_res["p_value"], float) else "N/A",
-        delta=(
-            f"Δ mediana: {ks_res['median_shift']:+.4f}"
+    e4.metric(
+        "Deslocamento mediana (saída)",
+        (
+            f"{ks_res['median_shift']:+.4f}"
             if isinstance(ks_res["median_shift"], float)
-            else None
+            else "N/A"
         ),
+        delta=f"Ref {_fmt_num(ks_res['ref_median'])} → Prod {_fmt_num(ks_res['prod_median'])}",
         delta_color="off",
     )
 
-    st.caption(
-        "Regra aplicada: variáveis contínuas ou inteiras com range > 100 usam KS "
-        "(probability_above_50k); variáveis categóricas ou inteiras com range <= 100 "
-        "(age: 83; hours_per_week: 98; occupation: categórica com null explícito) usam PSI."
+    server_note = ""
+    if server_latencies:
+        s_stats = compute_latency_stats(server_latencies, sla_ms=sla_ms)
+        server_note = (
+            f" No log interno ASGI (<code>n={s_stats['count']}</code>), a mediana registrada foi "
+            f"<code>{_fmt_ms(s_stats['median_ms'])}</code> e o "
+            f"<code>p95 = {_fmt_ms(s_stats['p95_ms'])}</code>; "
+            "a diferença reflete serialização HTTP/JSON e stack TCP loopback no cliente."
+        )
+
+    sla_verdict = "APROVADO" if sla_ok else "VIOLADO"
+    ks_sig = (
+        "ultrapassa marginalmente o valor crítico estatístico a 5%"
+        if ks_res.get("significant_at_0_05")
+        else "permanece abaixo do valor crítico estatístico a 5%"
     )
-    with st.expander("Fórmulas e critérios de referência (PSI / Jeffreys e KS biamostral)"):
+
+    st.markdown(
+        '<div class="cp-report-grid">'
+        '<div class="cp-report-card">'
+        '<div class="cp-report-card__eyebrow">01 · Desempenho e SLA</div>'
+        '<h3 class="cp-report-card__title">Conclusão sobre tempo de resposta</h3>'
+        '<p class="cp-report-card__text">'
+        f"Nos <code>{latency_stats['count']}</code> pedidos HTTP enviados a "
+        "<code>POST /predict</code>, "
+        f"90% concluíram abaixo de <code>{_fmt_ms(latency_stats['p90_ms'])}</code>, 95% abaixo de "
+        f"<code>{_fmt_ms(latency_stats['p95_ms'])}</code> e 99% abaixo de "
+        f"<code>{_fmt_ms(latency_stats['p99_ms'])}</code>. O contrato de SLA "
+        f"(<code>p95 &lt; {sla_ms:.0f} ms</code>) está <strong>{sla_verdict}</strong>."
+        f"{server_note}"
+        "</p>"
+        '<p class="cp-report-card__text">'
+        "O uso combinado de boxplot e gráfico de violino separa a dispersão interquartil "
+        f"(<code>IQR = {_fmt_ms(latency_stats['iqr_ms'])}</code>) dos picos isolados na cauda "
+        f"(<code>{latency_stats['outlier_count']}</code> outliers até "
+        f"<code>{_fmt_ms(latency_stats['max_ms'])}</code>), evitando distorções da média."
+        "</p>"
+        "</div>"
+        '<div class="cp-report-card">'
+        '<div class="cp-report-card__eyebrow">02 · Estabilidade e Drift</div>'
+        '<h3 class="cp-report-card__title">Conclusão sobre entrada e saída</h3>'
+        '<p class="cp-report-card__text">'
+        "Seguindo a regra de seleção (KS para variáveis contínuas ou inteiras com range &gt; 100; "
+        f"PSI para as demais), a entrada <code>{PRIMARY_INPUT_VAR}</code> obteve "
+        f"<strong>PSI = <code>{_fmt_num(psi_res['psi'])}</code></strong> "
+        f"(<em>{html.escape(str(psi_res['severity']))}</em>) com tratamento explícito de valores "
+        "nulos na categoria <code>(ausente)</code>."
+        "</p>"
+        '<p class="cp-report-card__text">'
+        f"A saída contínua <code>{PRIMARY_OUTPUT_VAR}</code> registrou "
+        f"<strong>KS D = <code>{_fmt_num(ks_res['ks_statistic'])}</code></strong> "
+        f"(<code>D crit = {_fmt_num(ks_res.get('critical_d_0_05'))}</code>, "
+        f"<code>p = {ks_res['p_value']:.4g}</code> — {ks_sig}), mantendo classificação operacional "
+        f"<em>{html.escape(str(ks_res['severity']))}</em>."
+        "</p>"
+        "</div>"
+        "</div>"
+        '<div class="cp-callout">'
+        "<strong>Nota metodológica:</strong> deslocamentos estatísticos de entrada (PSI) ou saída "
+        "(KS) sinalizam mudança de população e justificam auditoria periódica dos rótulos reais, "
+        "mas não comprovam isoladamente queda de acurácia do classificador."
+        "</div>",
+        unsafe_allow_html=True,
+    )
+
+    with st.expander("Fórmulas de referência (PSI / Jeffreys e KS biamostral)"):
         st.markdown(
             "- **PSI (Divergência KL simetrizada / Jeffreys):** "
             r"$\mathrm{PSI} = \sum_i (p_{\mathrm{prod},i} - p_{\mathrm{ref},i}) "
@@ -265,65 +581,52 @@ def _render_drift_tab(
             " (limiares padrão: `< 0,10` estável; `0,10–0,25` atenção; `>= 0,25` alerta).\n"
             "- **KS biamostral:** "
             r"$D_{n,m} = \sup_x |F_{\mathrm{ref},n}(x) - F_{\mathrm{prod},m}(x)|$"
-            " e valor crítico estatístico "
+            " e valor crítico "
             r"$D_{\mathrm{crit}}(\alpha) = c(\alpha)\sqrt{\frac{n+m}{n\cdot m}}$"
-            " com $c(0{,}05) \\approx 1{,}358$ (alerta operacional configurável em `D`)."
+            r" com $c(0{,}05) \approx 1{,}358$."
         )
 
-    st.subheader(f"Entrada monitorada: {PRIMARY_INPUT_VAR} (PSI)")
-    st.pyplot(
-        build_psi_figure(psi_res),
-        width="stretch",
-        alt=(
-            f"Comparação percentual por categoria de {PRIMARY_INPUT_VAR} "
-            "entre Referência e Produção."
-        ),
-    )
-    if psi_res["breakdown"]:
-        psi_df = pd.DataFrame(psi_res["breakdown"]).rename(
-            columns={
-                "category": "Categoria",
-                "ref_count": "Qtd Ref",
-                "prod_count": "Qtd Prod",
-                "ref_pct": "Ref (%)",
-                "prod_pct": "Prod (%)",
-                "delta_pp": "Diferença (p.p.)",
-                "psi_contribution": "Contribuição PSI",
-            }
+    col_tbl1, col_tbl2 = st.columns([1.35, 1.0], gap="medium")
+    with col_tbl1:
+        st.markdown(f"**Detalhamento por categoria — `{PRIMARY_INPUT_VAR}` (PSI)**")
+        if psi_res["breakdown"]:
+            psi_df = pd.DataFrame(psi_res["breakdown"]).rename(
+                columns={
+                    "category": "Categoria",
+                    "ref_count": "Qtd Ref",
+                    "prod_count": "Qtd Prod",
+                    "ref_pct": "Ref (%)",
+                    "prod_pct": "Prod (%)",
+                    "delta_pp": "Δ (p.p.)",
+                    "psi_contribution": "Contrib. PSI",
+                }
+            )
+            st.dataframe(psi_df, width="stretch", hide_index=True)
+
+    with col_tbl2:
+        st.markdown(f"**Resumo estatístico — `{PRIMARY_OUTPUT_VAR}` (KS)**")
+        ks_summary = pd.DataFrame(
+            [
+                {
+                    "Conjunto": "Referência",
+                    "N": ks_res["n_reference"],
+                    "Média": _fmt_num(ks_res["ref_mean"]),
+                    "Mediana": _fmt_num(ks_res["ref_median"]),
+                    "p95": _fmt_num(ks_res["ref_p95"]),
+                },
+                {
+                    "Conjunto": "Produção",
+                    "N": ks_res["n_production"],
+                    "Média": _fmt_num(ks_res["prod_mean"]),
+                    "Mediana": _fmt_num(ks_res["prod_median"]),
+                    "p95": _fmt_num(ks_res["prod_p95"]),
+                },
+            ]
         )
-        st.dataframe(psi_df, width="stretch", hide_index=True)
+        st.dataframe(ks_summary, width="stretch", hide_index=True)
 
-    st.subheader(f"Saída monitorada: {PRIMARY_OUTPUT_VAR} (KS)")
-    ref_probs = extract_numeric_column(ref_records, PRIMARY_OUTPUT_VAR)
-    prod_probs = extract_numeric_column(prod_records, PRIMARY_OUTPUT_VAR)
-    st.pyplot(
-        build_ks_figure(ref_probs, prod_probs, ks_res),
-        width="stretch",
-        alt=f"ECDF e densidade comparada de {PRIMARY_OUTPUT_VAR} destacando distância KS.",
-    )
-
-    ks_summary = pd.DataFrame(
-        [
-            {
-                "Conjunto": "Referência",
-                "N": ks_res["n_reference"],
-                "Média": _fmt_num(ks_res["ref_mean"]),
-                "Mediana": _fmt_num(ks_res["ref_median"]),
-                "p95": _fmt_num(ks_res["ref_p95"]),
-            },
-            {
-                "Conjunto": "Produção",
-                "N": ks_res["n_production"],
-                "Média": _fmt_num(ks_res["prod_mean"]),
-                "Mediana": _fmt_num(ks_res["prod_median"]),
-                "p95": _fmt_num(ks_res["prod_p95"]),
-            },
-        ]
-    )
-    st.dataframe(ks_summary, width="stretch", hide_index=True)
-
-    st.subheader("Visão de apoio: todas as variáveis do contrato")
-    supp_df = pd.DataFrame(drift["supplementary"]).rename(
+    st.markdown("**Visão complementar de todas as variáveis do contrato**")
+    supp_df = pd.DataFrame(supp).rename(
         columns={
             "variable": "Variável",
             "role": "Papel",
@@ -344,6 +647,12 @@ def _render_data_tab(
     prod_records: list[dict[str, object]],
     evidence_dir: Path,
 ) -> None:
+    _render_section_head(
+        "05",
+        "Amostras Submetidas e Reprodução CLI",
+        f"Diretório: {evidence_dir}",
+        first=True,
+    )
     preview_cols = [
         "age",
         "occupation",
@@ -354,19 +663,18 @@ def _render_data_tab(
         "income_class_proxy",
         "probability_above_50k",
     ]
-    st.subheader("Amostras submetidas ao servidor BentoML")
-    col1, col2 = st.columns(2)
+    col1, col2 = st.columns(2, gap="medium")
     for col, label, records in (
-        (col1, "Referência", ref_records),
-        (col2, "Produção", prod_records),
+        (col1, "Conjunto de Referência", ref_records),
+        (col2, "Conjunto de Produção", prod_records),
     ):
         with col:
-            st.markdown(f"**{label} (`{len(records)}` registros válidos)**")
+            st.markdown(f"**{label}** (`{len(records)}` registros válidos)")
             frame = pd.DataFrame(records)
             cols = [c for c in preview_cols if c in frame.columns] or list(frame.columns)
             st.dataframe(frame[cols].head(25), width="stretch", hide_index=True)
 
-    st.subheader("Reprodução local pela linha de comando")
+    st.markdown("**Reprodução local pela linha de comando**")
     st.code(
         "\n".join(
             [
@@ -385,20 +693,30 @@ def _render_data_tab(
 
 def main() -> None:
     st.set_page_config(
-        page_title="CareerPath MLOps — Monitoramento AV2 Parte 2",
+        page_title="CareerPath MLOps — Observabilidade AV2 Parte 2",
         layout="wide",
+        initial_sidebar_state="auto",
     )
-    st.title("CareerPath MLOps — Monitoramento Estatístico (AV2 Parte 2)")
-    st.caption(
-        "Latência não paramétrica (p90, p95, p99, boxplot e violino) e detecção de drift "
-        "(PSI e KS)."
-    )
+    _inject_styles()
 
     default_dir = _default_evidence_dir()
     with st.sidebar:
-        st.header("Configurações da análise")
+        st.markdown(
+            '<div class="cp-sidebar-brand">'
+            f'<span class="cp-sidebar-brand__mark">{_ICON_BRAND}</span>'
+            "<div>"
+            '<div class="cp-sidebar-brand__name">CareerPath MLOps</div>'
+            '<div class="cp-sidebar-brand__sub">Monitoramento · AV2 P2</div>'
+            "</div>"
+            "</div>",
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            '<div class="cp-sidebar-group">Fonte de evidências</div>',
+            unsafe_allow_html=True,
+        )
         source_mode = st.radio(
-            "Fonte dos dados",
+            "Modo de carregamento",
             options=["Evidência versionada (offline)", "Diretório customizado"],
             index=0,
         )
@@ -414,6 +732,11 @@ def main() -> None:
             value=str(DEFAULT_INFERENCE_LOG),
         )
         inference_log = Path(raw_log.strip()) if raw_log.strip() else None
+
+        st.markdown(
+            '<div class="cp-sidebar-group">Limiares operacionais</div>',
+            unsafe_allow_html=True,
+        )
         sla_ms = float(
             st.number_input(
                 "SLA alvo para p95 (ms)",
@@ -460,6 +783,16 @@ def main() -> None:
     ]
     missing = [path for path in expected if not path.is_file()]
     if missing:
+        _render_header(
+            request_count=None,
+            ref_count=None,
+            prod_count=None,
+            sla_ms=sla_ms,
+            sla_passed=None,
+            p95_ms=None,
+            model_version="adult-income-v1",
+            server_count=None,
+        )
         st.info(
             "Nenhuma coleta encontrada no diretório selecionado. "
             f"Arquivos ausentes: {', '.join(str(p) for p in missing)}. "
@@ -476,22 +809,67 @@ def main() -> None:
                 signature,
             )
     except ValueError as exc:
+        _render_header(
+            request_count=None,
+            ref_count=None,
+            prod_count=None,
+            sla_ms=sla_ms,
+            sla_passed=None,
+            p95_ms=None,
+            model_version="adult-income-v1",
+            server_count=None,
+        )
         st.error(f"Não foi possível ler os arquivos de monitoramento: {exc}")
         return
 
-    tab_latency, tab_drift, tab_data = st.tabs(
-        ["Latência & SLA", "Drift (PSI & KS)", "Dados & Reprodução"]
+    latencies = extract_numeric_column(bench_records, "client_latency_ms")
+    latency_stats = compute_latency_stats(latencies, sla_ms=sla_ms)
+    drift = compute_all_variable_drifts(
+        ref_records,
+        prod_records,
+        psi_watch=psi_watch,
+        psi_alert=psi_alert,
+        ks_alert_d=ks_alert_d,
     )
-    with tab_latency:
-        _render_latency_tab(bench_records, server_latencies, sla_ms)
-    with tab_drift:
-        _render_drift_tab(
+    model_version = next(
+        (
+            str(r["model_version"])
+            for r in ref_records
+            if isinstance(r.get("model_version"), str) and r["model_version"]
+        ),
+        "adult-income-v1",
+    )
+
+    _render_header(
+        request_count=int(latency_stats["count"]),
+        ref_count=len(ref_records),
+        prod_count=len(prod_records),
+        sla_ms=sla_ms,
+        sla_passed=(
+            bool(latency_stats["sla_passed"])
+            if latency_stats["sla_passed"] is not None
+            else None
+        ),
+        p95_ms=latency_stats["p95_ms"] if isinstance(latency_stats["p95_ms"], float) else None,
+        model_version=model_version,
+        server_count=len(server_latencies) if server_latencies else None,
+    )
+
+    tab_overview, tab_report, tab_data = st.tabs(
+        ["Visão Geral", "Relatório", "Dados & CLI"]
+    )
+    with tab_overview:
+        _render_overview_tab(
+            latencies,
+            latency_stats,
+            server_latencies,
             ref_records,
             prod_records,
-            psi_watch=psi_watch,
-            psi_alert=psi_alert,
-            ks_alert_d=ks_alert_d,
+            drift,
+            sla_ms,
         )
+    with tab_report:
+        _render_report_tab(latency_stats, server_latencies, drift, sla_ms)
     with tab_data:
         _render_data_tab(ref_records, prod_records, evidence_dir)
 

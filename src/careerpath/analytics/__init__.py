@@ -29,7 +29,9 @@ from .io import (
 )
 from .latency import DEFAULT_SLA_MS, compute_latency_stats
 from .plots import (
+    CHART_THEME,
     PALETTE,
+    apply_chart_theme,
     build_ks_figure,
     build_latency_boxplot_figure,
     build_latency_overview_figure,
@@ -38,6 +40,7 @@ from .plots import (
 )
 
 __all__ = [
+    "CHART_THEME",
     "DEFAULT_KS_ALERT_D",
     "DEFAULT_PSI_ALERT",
     "DEFAULT_PSI_EPSILON",
@@ -50,6 +53,7 @@ __all__ = [
     "PRIMARY_INPUT_VAR",
     "PRIMARY_OUTPUT_VAR",
     "VARIABLE_SPECS",
+    "apply_chart_theme",
     "build_ks_figure",
     "build_latency_boxplot_figure",
     "build_latency_overview_figure",
