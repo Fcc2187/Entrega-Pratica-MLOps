@@ -192,5 +192,5 @@ grava o vídeo, confirma o cache e cria/envia `sr1` no prazo.
 
 ## Continuidade — AV2 (Parte 2)
 
-- Na branch `av2-p2`, o planejamento foi conduzido com apoio da skill local `best-prompt-ever` e a implementação/validação dos scripts estatísticos (`src/careerpath/analytics.py`, `scripts/part2_collect.py`, `scripts/part2_report.py`), dashboard Streamlit (`scripts/dashboard.py`), testes e documentação (`docs/av2-p2/`) contou com apoio de assistente de IA sob revisão da equipe.
+- Na branch `av2-p2`, o planejamento foi conduzido com apoio da skill local `best-prompt-ever` e a implementação/validação dos scripts estatísticos (`src/careerpath/analytics/`, `src/careerpath/http_utils.py`, `scripts/part2_collect.py`, `scripts/part2_report.py`), dashboard Streamlit (`scripts/dashboard.py`), testes e documentação (`docs/av2-p2/`) contou com apoio de assistente de IA sob revisão da equipe.
 - Todas as estatísticas do relatório ([`docs/av2-p2/parte-2-relatorio.md`](av2-p2/parte-2-relatorio.md)) foram obtidas por execução real contra o servidor BentoML local e validadas com `ruff`, `pytest` e `compileall`.

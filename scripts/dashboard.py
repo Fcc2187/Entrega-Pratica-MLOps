@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Mapping
 from pathlib import Path
 
 import pandas as pd
@@ -23,6 +24,7 @@ from careerpath.analytics import (
     compute_all_variable_drifts,
     compute_latency_stats,
     extract_inference_latencies,
+    extract_numeric_column,
     load_jsonl_records,
 )
 
@@ -42,15 +44,39 @@ def _default_evidence_dir() -> Path:
     return Path(os.environ.get("CAREERPATH_PART2_EVIDENCE_DIR", "docs/av2-p2/evidence"))
 
 
-def _load_bundle(
+def _file_stamp(path: Path | None) -> tuple[int, int] | None:
+    if path is None or not path.is_file():
+        return None
+    stat = path.stat()
+    return (stat.st_mtime_ns, stat.st_size)
+
+
+def _bundle_signature(
     evidence_dir: Path,
     inference_log: Path | None,
+) -> tuple[tuple[int, int] | None, ...]:
+    return (
+        _file_stamp(evidence_dir / "latency-benchmark.jsonl"),
+        _file_stamp(evidence_dir / "reference-responses.jsonl"),
+        _file_stamp(evidence_dir / "production-responses.jsonl"),
+        _file_stamp(inference_log),
+    )
+
+
+@st.cache_data(show_spinner=False)
+def _load_bundle(
+    evidence_dir_str: str,
+    inference_log_str: str | None,
+    file_signature: tuple[tuple[int, int] | None, ...],
 ) -> tuple[
     list[dict[str, object]],
     list[dict[str, object]],
     list[dict[str, object]],
     list[float] | None,
 ]:
+    del file_signature  # Included in cache key so edits on disk invalidate cached JSONL reads.
+    evidence_dir = Path(evidence_dir_str)
+    inference_log = Path(inference_log_str) if inference_log_str else None
     bench = load_jsonl_records(evidence_dir / "latency-benchmark.jsonl")
     reference = load_jsonl_records(evidence_dir / "reference-responses.jsonl")
     production = load_jsonl_records(evidence_dir / "production-responses.jsonl")
@@ -60,16 +86,32 @@ def _load_bundle(
     return bench, reference, production, server_latencies
 
 
+def _latency_metric_rows(stats: Mapping[str, object], sla_ms: float) -> list[tuple[str, str]]:
+    sla_passed = stats.get("sla_passed")
+    sla_label = "N/A" if sla_passed is None else ("APROVADO" if sla_passed else "VIOLADO")
+    return [
+        ("Mínimo", _fmt_ms(stats["min_ms"])),
+        ("Q1 (25%)", _fmt_ms(stats["q1_ms"])),
+        ("Mediana (p50)", _fmt_ms(stats["median_ms"])),
+        ("Q3 (75%)", _fmt_ms(stats["q3_ms"])),
+        ("IQR (Q3 - Q1)", _fmt_ms(stats["iqr_ms"])),
+        ("Bigode inferior (Tukey)", _fmt_ms(stats["lower_whisker_ms"])),
+        ("Bigode superior (Tukey)", _fmt_ms(stats["upper_whisker_ms"])),
+        ("p90", _fmt_ms(stats["p90_ms"])),
+        ("p95", _fmt_ms(stats["p95_ms"])),
+        ("p99", _fmt_ms(stats["p99_ms"])),
+        ("Máximo", _fmt_ms(stats["max_ms"])),
+        ("Outliers além de 1,5 × IQR", str(stats["outlier_count"])),
+        (f"Status SLA (p95 < {sla_ms:.0f} ms)", sla_label),
+    ]
+
+
 def _render_latency_tab(
     bench_records: list[dict[str, object]],
     server_latencies: list[float] | None,
     sla_ms: float,
 ) -> None:
-    latencies = [
-        float(row["client_latency_ms"])
-        for row in bench_records
-        if isinstance(row.get("client_latency_ms"), int | float)
-    ]
+    latencies = extract_numeric_column(bench_records, "client_latency_ms")
     stats = compute_latency_stats(latencies, sla_ms=sla_ms)
     if stats["count"] == 0:
         st.info("Nenhuma observação de latência disponível no arquivo de benchmark.")
@@ -122,41 +164,15 @@ def _render_latency_tab(
             )
 
     summary_rows = [
-        {"Métrica": "Mínimo", "Cliente HTTP": _fmt_ms(stats["min_ms"])},
-        {"Métrica": "Q1 (25%)", "Cliente HTTP": _fmt_ms(stats["q1_ms"])},
-        {"Métrica": "Mediana (p50)", "Cliente HTTP": _fmt_ms(stats["median_ms"])},
-        {"Métrica": "Q3 (75%)", "Cliente HTTP": _fmt_ms(stats["q3_ms"])},
-        {"Métrica": "IQR (Q3 - Q1)", "Cliente HTTP": _fmt_ms(stats["iqr_ms"])},
-        {"Métrica": "Bigode inferior (Tukey)", "Cliente HTTP": _fmt_ms(stats["lower_whisker_ms"])},
-        {"Métrica": "Bigode superior (Tukey)", "Cliente HTTP": _fmt_ms(stats["upper_whisker_ms"])},
-        {"Métrica": "p90", "Cliente HTTP": _fmt_ms(stats["p90_ms"])},
-        {"Métrica": "p95", "Cliente HTTP": _fmt_ms(stats["p95_ms"])},
-        {"Métrica": "p99", "Cliente HTTP": _fmt_ms(stats["p99_ms"])},
-        {"Métrica": "Máximo", "Cliente HTTP": _fmt_ms(stats["max_ms"])},
-        {"Métrica": "Outliers além de 1,5 × IQR", "Cliente HTTP": str(stats["outlier_count"])},
-        {"Métrica": f"Status SLA (p95 < {sla_ms:.0f} ms)", "Cliente HTTP": sla_label},
+        {"Métrica": label, "Cliente HTTP": value}
+        for label, value in _latency_metric_rows(stats, sla_ms)
     ]
     if server_latencies:
         server_stats = compute_latency_stats(server_latencies, sla_ms=sla_ms)
-        server_map = {
-            "Mínimo": _fmt_ms(server_stats["min_ms"]),
-            "Q1 (25%)": _fmt_ms(server_stats["q1_ms"]),
-            "Mediana (p50)": _fmt_ms(server_stats["median_ms"]),
-            "Q3 (75%)": _fmt_ms(server_stats["q3_ms"]),
-            "IQR (Q3 - Q1)": _fmt_ms(server_stats["iqr_ms"]),
-            "Bigode inferior (Tukey)": _fmt_ms(server_stats["lower_whisker_ms"]),
-            "Bigode superior (Tukey)": _fmt_ms(server_stats["upper_whisker_ms"]),
-            "p90": _fmt_ms(server_stats["p90_ms"]),
-            "p95": _fmt_ms(server_stats["p95_ms"]),
-            "p99": _fmt_ms(server_stats["p99_ms"]),
-            "Máximo": _fmt_ms(server_stats["max_ms"]),
-            "Outliers além de 1,5 × IQR": str(server_stats["outlier_count"]),
-            f"Status SLA (p95 < {sla_ms:.0f} ms)": (
-                "APROVADO" if server_stats["sla_passed"] else "VIOLADO"
-            ),
-        }
-        for row in summary_rows:
-            row["Log Servidor (ASGI)"] = server_map.get(row["Métrica"], "N/A")
+        for row, (_, server_value) in zip(
+            summary_rows, _latency_metric_rows(server_stats, sla_ms), strict=True
+        ):
+            row["Log Servidor (ASGI)"] = server_value
 
     st.subheader("Tabela de estatísticas não paramétricas")
     st.dataframe(pd.DataFrame(summary_rows), width="stretch", hide_index=True)
@@ -278,16 +294,8 @@ def _render_drift_tab(
         st.dataframe(psi_df, width="stretch", hide_index=True)
 
     st.subheader(f"Saída monitorada: {PRIMARY_OUTPUT_VAR} (KS)")
-    ref_probs = [
-        float(r[PRIMARY_OUTPUT_VAR])
-        for r in ref_records
-        if isinstance(r.get(PRIMARY_OUTPUT_VAR), int | float)
-    ]
-    prod_probs = [
-        float(r[PRIMARY_OUTPUT_VAR])
-        for r in prod_records
-        if isinstance(r.get(PRIMARY_OUTPUT_VAR), int | float)
-    ]
+    ref_probs = extract_numeric_column(ref_records, PRIMARY_OUTPUT_VAR)
+    prod_probs = extract_numeric_column(prod_records, PRIMARY_OUTPUT_VAR)
     st.pyplot(
         build_ks_figure(ref_probs, prod_probs, ks_res),
         width="stretch",
@@ -442,7 +450,8 @@ def main() -> None:
                 step=0.02,
             )
         )
-        st.button("Recarregar análise", width="stretch")
+        if st.button("Recarregar análise", width="stretch"):
+            _load_bundle.clear()
 
     expected = [
         evidence_dir / "latency-benchmark.jsonl",
@@ -460,8 +469,11 @@ def main() -> None:
 
     try:
         with st.spinner("Calculando estatísticas de latência e drift..."):
+            signature = _bundle_signature(evidence_dir, inference_log)
             bench_records, ref_records, prod_records, server_latencies = _load_bundle(
-                evidence_dir, inference_log
+                str(evidence_dir),
+                str(inference_log) if inference_log is not None else None,
+                signature,
             )
     except ValueError as exc:
         st.error(f"Não foi possível ler os arquivos de monitoramento: {exc}")

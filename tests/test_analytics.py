@@ -17,9 +17,11 @@ from careerpath.analytics import (
     compute_latency_stats,
     compute_psi,
     extract_inference_latencies,
+    extract_numeric_column,
     extract_valid_prediction_records,
     select_drift_method,
 )
+from careerpath.http_utils import NoRedirect, validate_base_url
 
 
 def test_select_drift_method_follows_prompt_rules() -> None:
@@ -195,3 +197,23 @@ def test_chart_builders_render_png_for_populated_and_empty_inputs(tmp_path: Path
         out = tmp_path / f"{name}.png"
         fig.savefig(out, dpi=100)
         assert out.read_bytes().startswith(b"\x89PNG\r\n\x1a\n")
+
+
+def test_extract_numeric_column_and_http_utils() -> None:
+    import pytest
+
+    rows = [
+        {"latency_ms": 10},
+        {"latency_ms": 15.5},
+        {"latency_ms": True},
+        {"latency_ms": float("nan")},
+        {"latency_ms": "20"},
+        {},
+    ]
+    assert extract_numeric_column(rows, "latency_ms") == [10.0, 15.5]
+
+    assert validate_base_url("http://127.0.0.1:3000/") == "http://127.0.0.1:3000"
+    assert NoRedirect().redirect_request(None, None, 302, "Found", {}, "http://x") is None
+    for bad_url in ("file:///tmp", "http://user@127.0.0.1:3000", "http://127.0.0.1:0"):
+        with pytest.raises(ValueError):
+            validate_base_url(bad_url)

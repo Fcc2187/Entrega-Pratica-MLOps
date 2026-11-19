@@ -6,8 +6,9 @@ from http.client import HTTPException
 from pathlib import Path
 from random import Random
 from urllib.error import HTTPError
-from urllib.parse import urlsplit
-from urllib.request import HTTPRedirectHandler, Request, build_opener
+from urllib.request import Request, build_opener
+
+from careerpath.http_utils import NoRedirect, validate_base_url
 
 SCENARIOS = ("baseline", "shifted")
 EXAMPLES = Path(__file__).resolve().parents[1] / "examples"
@@ -36,13 +37,6 @@ def build_payloads(count: int, *, seed: int, scenario: str) -> list[dict[str, ob
     ]
 
 
-class NoRedirect(HTTPRedirectHandler):
-    """Count redirects as unexpected responses from the requested endpoint."""
-
-    def redirect_request(self, req, fp, code, msg, headers, newurl):
-        return None
-
-
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--url", default="http://127.0.0.1:3000", help="Base URL of the service")
@@ -55,20 +49,13 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("--count must be positive")
     if not 0 <= args.invalid_every <= args.count:
         parser.error("--invalid-every must be between 0 and --count")
-    if "?" in args.url or "#" in args.url or any(not 33 <= ord(char) <= 126 for char in args.url):
-        parser.error("--url must use printable ASCII without spaces, query or fragment")
     try:
-        base = urlsplit(args.url)
-        port = base.port
-    except ValueError:
-        parser.error("--url must be a valid HTTP or HTTPS base URL")
-    if base.scheme not in ("http", "https") or not base.hostname:
-        parser.error("--url must be an HTTP or HTTPS base URL")
-    if port == 0 or base.username is not None:
-        parser.error("--url must use a nonzero port and omit credentials")
+        base_url = validate_base_url(args.url)
+    except ValueError as error:
+        parser.error(str(error))
 
     payloads = build_payloads(args.count, seed=args.seed, scenario=args.scenario)
-    endpoint = args.url.rstrip("/") + "/predict"
+    endpoint = f"{base_url}/predict"
     opener = build_opener(NoRedirect())
     counts = {
         "sent": 0,

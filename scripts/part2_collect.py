@@ -12,12 +12,12 @@ from http.client import HTTPException
 from pathlib import Path
 from time import perf_counter
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlsplit
-from urllib.request import HTTPRedirectHandler, Request, build_opener
+from urllib.request import Request, build_opener
 
 import numpy as np
 import pandas as pd
 
+from careerpath.http_utils import NoRedirect, validate_base_url
 from careerpath.schema import Profile
 from careerpath.train import FEATURES, load_adult, remove_test_overlap
 
@@ -39,29 +39,6 @@ OCCUPATION_SHIFT_WEIGHTS: dict[str, float] = {
     "Farming-fishing": 0.45,
     "Priv-house-serv": 0.40,
 }
-
-
-class NoRedirect(HTTPRedirectHandler):
-    """Disallow HTTP redirects on inference endpoint calls."""
-
-    def redirect_request(self, req, fp, code, msg, headers, newurl):
-        return None
-
-
-def validate_base_url(url: str) -> str:
-    """Validate an ASCII HTTP/HTTPS base URL without credentials, query, or fragment."""
-    if "?" in url or "#" in url or any(not 33 <= ord(char) <= 126 for char in url):
-        raise ValueError("--url must use printable ASCII without spaces, query or fragment")
-    try:
-        parsed = urlsplit(url)
-        port = parsed.port
-    except ValueError as exc:
-        raise ValueError("--url must be a valid HTTP or HTTPS base URL") from exc
-    if parsed.scheme not in ("http", "https") or not parsed.hostname:
-        raise ValueError("--url must be an HTTP or HTTPS base URL")
-    if port == 0 or parsed.username is not None:
-        raise ValueError("--url must use a nonzero port and omit credentials")
-    return url.rstrip("/")
 
 
 def _clean_nullable(value: object) -> str | None:

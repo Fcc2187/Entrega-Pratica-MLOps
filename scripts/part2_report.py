@@ -19,19 +19,11 @@ from careerpath.analytics import (
     compute_all_variable_drifts,
     compute_latency_stats,
     extract_inference_latencies,
+    extract_numeric_column,
     load_jsonl_records,
 )
 
 DEFAULT_EVIDENCE_DIR = Path("docs/av2-p2/evidence")
-
-
-def _extract_numeric_column(records: list[dict[str, object]], key: str) -> list[float]:
-    values: list[float] = []
-    for row in records:
-        val = row.get(key)
-        if isinstance(val, int | float) and not isinstance(val, bool):
-            values.append(float(val))
-    return values
 
 
 def generate_part2_report(
@@ -50,7 +42,7 @@ def generate_part2_report(
     ref_records = load_jsonl_records(evidence_dir / "reference-responses.jsonl")
     prod_records = load_jsonl_records(evidence_dir / "production-responses.jsonl")
 
-    client_latencies = _extract_numeric_column(bench_records, "client_latency_ms")
+    client_latencies = extract_numeric_column(bench_records, "client_latency_ms")
     client_latency_stats = compute_latency_stats(client_latencies, sla_ms=sla_ms)
 
     server_latency_stats: dict[str, object] | None = None
@@ -60,8 +52,8 @@ def generate_part2_report(
 
     drift = compute_all_variable_drifts(ref_records, prod_records, epsilon=epsilon)
 
-    ref_probs = _extract_numeric_column(ref_records, PRIMARY_OUTPUT_VAR)
-    prod_probs = _extract_numeric_column(prod_records, PRIMARY_OUTPUT_VAR)
+    ref_probs = extract_numeric_column(ref_records, PRIMARY_OUTPUT_VAR)
+    prod_probs = extract_numeric_column(prod_records, PRIMARY_OUTPUT_VAR)
 
     artifacts = {
         "latency_boxplot": target_dir / "latency_boxplot.png",

@@ -1,6 +1,5 @@
 import json
 from http.client import HTTPException
-from io import BytesIO
 from pathlib import Path
 from runpy import run_path
 from types import SimpleNamespace
@@ -340,4 +339,3 @@ def test_streamlit_dashboard_states_empty_error_and_success(
     assert not app_ok.exception
     assert len(app_ok.tabs) == 3
     assert len(app_ok.metric) >= 9
-    assert not isinstance(BytesIO(), str)

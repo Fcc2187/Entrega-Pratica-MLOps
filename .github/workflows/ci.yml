@@ -2,7 +2,7 @@ name: Quality
 
 on:
   push:
-    branches: [main, av2]
+    branches: [main, av2, av2-p2]
   pull_request:
 
 permissions:

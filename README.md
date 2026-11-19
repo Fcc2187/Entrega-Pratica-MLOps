@@ -72,7 +72,7 @@ o carregamento seguro do artefato e o fluxo de validação e inferência da API:
 Clone o repositório e instale exatamente as dependências fixadas:
 
 ```powershell
-git clone --branch av2 https://github.com/Fcc2187/AV1-Entrega-Pratica-MLOps.git
+git clone --branch av2-p2 https://github.com/Fcc2187/AV1-Entrega-Pratica-MLOps.git
 cd AV1-Entrega-Pratica-MLOps
 uv sync --frozen --python 3.12
 ```
@@ -293,7 +293,7 @@ versão aguardam validação em máquina com Docker. [Guia Docker](docs/av2-p1/d
 ### CI
 
 O workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) executa em push
-em `main` e `av2` e em pull requests. Ele usa ações fixadas por SHA,
+em `main`, `av2` e `av2-p2` e em pull requests. Ele usa ações fixadas por SHA,
 instalação frozen, Ruff, pytest e compilação em Linux.
 
 ## Modelo, dados e limitações
