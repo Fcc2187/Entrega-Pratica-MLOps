@@ -1,0 +1,348 @@
+{
+  "latency_client": {
+    "count": 500,
+    "dropped_non_finite": 0,
+    "status": "OK",
+    "sla_threshold_ms": 400.0,
+    "sla_passed": true,
+    "sla_margin_ms": 357.6043149718316,
+    "min_ms": 11.635300004854798,
+    "q1_ms": 24.872975001926534,
+    "median_ms": 31.64109998033382,
+    "q3_ms": 35.27685004519299,
+    "iqr_ms": 10.403875043266453,
+    "p90_ms": 40.10055997641757,
+    "p95_ms": 42.395685028168366,
+    "p99_ms": 59.014501990750404,
+    "max_ms": 144.56030004657805,
+    "mean_ms": 30.453846400021575,
+    "std_ms": 10.345316291439058,
+    "lower_fence_ms": 9.267162437026855,
+    "upper_fence_ms": 50.882662610092666,
+    "lower_whisker_ms": 11.635300004854798,
+    "upper_whisker_ms": 49.67789998045191,
+    "outlier_count": 6,
+    "outliers_ms": [
+      144.56030004657805,
+      66.46989996079355,
+      63.274300016928464,
+      58.98239999078214,
+      62.192599987611175,
+      76.23750000493601
+    ]
+  },
+  "latency_server_log": {
+    "count": 1500,
+    "dropped_non_finite": 0,
+    "status": "OK",
+    "sla_threshold_ms": 400.0,
+    "sla_passed": true,
+    "sla_margin_ms": 382.62216500297654,
+    "min_ms": 7.736500003375113,
+    "q1_ms": 11.747674987418577,
+    "median_ms": 14.003100019181147,
+    "q3_ms": 15.237424959195778,
+    "iqr_ms": 3.4897499717772007,
+    "p90_ms": 16.409819968976084,
+    "p95_ms": 17.377834997023452,
+    "p99_ms": 27.647216031327844,
+    "max_ms": 135.498900024686,
+    "mean_ms": 13.848564665842181,
+    "std_ms": 5.492303215427016,
+    "lower_fence_ms": 6.513050029752776,
+    "upper_fence_ms": 20.47204991686158,
+    "lower_whisker_ms": 7.736500003375113,
+    "upper_whisker_ms": 20.15569998184219,
+    "outlier_count": 22,
+    "outliers_ms": [
+      135.498900024686,
+      25.70420003030449,
+      44.29860005620867,
+      42.82179998699576,
+      44.202800025232136,
+      44.86129997530952,
+      28.987900004722178,
+      21.427600004244596,
+      60.764499998185784,
+      21.503199997823685,
+      44.6343999938108,
+      22.27570000104606,
+      30.0025999895297,
+      22.658900008536875,
+      42.567400028929114,
+      60.497600003145635,
+      27.128999994602054,
+      27.767600025981665,
+      43.68920001434162,
+      31.857799971476197,
+      102.85159997874871,
+      27.646000031381845
+    ]
+  },
+  "drift": {
+    "primary_input": {
+      "variable": "occupation",
+      "method": "PSI",
+      "status": "OK",
+      "psi": 0.14157587860248627,
+      "severity": "Atenção (0.10 a 0.25)",
+      "n_reference": 500,
+      "n_production": 500,
+      "epsilon": 1e-06,
+      "category_count": 14,
+      "breakdown": [
+        {
+          "category": "Craft-repair",
+          "ref_count": 72,
+          "prod_count": 38,
+          "ref_pct": 14.399999999999999,
+          "prod_pct": 7.6,
+          "delta_pp": -6.799999999999999,
+          "psi_contribution": 0.043456406331635694
+        },
+        {
+          "category": "Prof-specialty",
+          "ref_count": 65,
+          "prod_count": 107,
+          "ref_pct": 13.0,
+          "prod_pct": 21.4,
+          "delta_pp": 8.399999999999999,
+          "psi_contribution": 0.04186825163913007
+        },
+        {
+          "category": "Handlers-cleaners",
+          "ref_count": 23,
+          "prod_count": 11,
+          "ref_pct": 4.6,
+          "prod_pct": 2.1999999999999997,
+          "delta_pp": -2.4,
+          "psi_contribution": 0.01770155766249259
+        },
+        {
+          "category": "Transport-moving",
+          "ref_count": 26,
+          "prod_count": 15,
+          "ref_pct": 5.2,
+          "prod_pct": 3.0,
+          "delta_pp": -2.1999999999999997,
+          "psi_contribution": 0.012100539756411092
+        },
+        {
+          "category": "Tech-support",
+          "ref_count": 16,
+          "prod_count": 25,
+          "ref_pct": 3.2,
+          "prod_pct": 5.0,
+          "delta_pp": 1.8000000000000003,
+          "psi_contribution": 0.008032852892559983
+        },
+        {
+          "category": "Exec-managerial",
+          "ref_count": 68,
+          "prod_count": 85,
+          "ref_pct": 13.600000000000001,
+          "prod_pct": 17.0,
+          "delta_pp": 3.4000000000000004,
+          "psi_contribution": 0.007586724530870587
+        },
+        {
+          "category": "Protective-serv",
+          "ref_count": 11,
+          "prod_count": 6,
+          "ref_pct": 2.1999999999999997,
+          "prod_pct": 1.2,
+          "delta_pp": -0.9999999999999999,
+          "psi_contribution": 0.006060894419692523
+        },
+        {
+          "category": "Priv-house-serv",
+          "ref_count": 2,
+          "prod_count": 1,
+          "ref_pct": 0.4,
+          "prod_pct": 0.2,
+          "delta_pp": -0.2,
+          "psi_contribution": 0.0013857751476949356
+        },
+        {
+          "category": "Adm-clerical",
+          "ref_count": 50,
+          "prod_count": 56,
+          "ref_pct": 10.0,
+          "prod_pct": 11.200000000000001,
+          "delta_pp": 1.1999999999999997,
+          "psi_contribution": 0.0013599123278902722
+        },
+        {
+          "category": "Other-service",
+          "ref_count": 53,
+          "prod_count": 48,
+          "ref_pct": 10.6,
+          "prod_pct": 9.6,
+          "delta_pp": -0.9999999999999996,
+          "psi_contribution": 0.000990885327101237
+        },
+        {
+          "category": "Machine-op-inspct",
+          "ref_count": 24,
+          "prod_count": 21,
+          "ref_pct": 4.8,
+          "prod_pct": 4.2,
+          "delta_pp": -0.5999999999999999,
+          "psi_contribution": 0.0008011592827729076
+        },
+        {
+          "category": "Sales",
+          "ref_count": 61,
+          "prod_count": 59,
+          "ref_pct": 12.2,
+          "prod_pct": 11.799999999999999,
+          "delta_pp": -0.40000000000000036,
+          "psi_contribution": 0.00013334270286195258
+        },
+        {
+          "category": "(ausente)",
+          "ref_count": 21,
+          "prod_count": 20,
+          "ref_pct": 4.2,
+          "prod_pct": 4.0,
+          "delta_pp": -0.20000000000000018,
+          "psi_contribution": 9.757658137244891e-05
+        },
+        {
+          "category": "Farming-fishing",
+          "ref_count": 8,
+          "prod_count": 8,
+          "ref_pct": 1.6,
+          "prod_pct": 1.6,
+          "delta_pp": 0.0,
+          "psi_contribution": 0.0
+        }
+      ]
+    },
+    "primary_output": {
+      "variable": "probability_above_50k",
+      "method": "KS",
+      "status": "OK",
+      "ks_statistic": 0.08600000000000002,
+      "p_value": 0.04950261174890187,
+      "critical_d_0_05": 0.08588746125017319,
+      "n_eff": 250.0,
+      "significant_at_0_05": true,
+      "severity": "Estável (< 0.10)",
+      "n_reference": 500,
+      "n_production": 500,
+      "max_diff_at": 0.07693825588929436,
+      "max_diff_ecdf_ref": 0.4,
+      "max_diff_ecdf_prod": 0.314,
+      "ref_mean": 0.26564086414420557,
+      "ref_median": 0.15424821724743476,
+      "ref_p95": 0.8093478946794576,
+      "prod_mean": 0.31739609893594156,
+      "prod_median": 0.21277527785245776,
+      "prod_p95": 0.8834345691761396,
+      "median_shift": 0.058527060605022996
+    },
+    "supplementary": [
+      {
+        "variable": "age",
+        "role": "input",
+        "kind": "integer",
+        "domain_range": 83,
+        "method": "PSI",
+        "value": 0.15292034065438656,
+        "p_value": null,
+        "severity": "Atenção (0.10 a 0.25)",
+        "is_primary": false
+      },
+      {
+        "variable": "hours_per_week",
+        "role": "input",
+        "kind": "integer",
+        "domain_range": 98,
+        "method": "PSI",
+        "value": 1.763522231552476,
+        "p_value": null,
+        "severity": "Alerta (>= 0.25)",
+        "is_primary": false
+      },
+      {
+        "variable": "education",
+        "role": "input",
+        "kind": "categorical",
+        "domain_range": null,
+        "method": "PSI",
+        "value": 0.07792335517960113,
+        "p_value": null,
+        "severity": "Estável (< 0.10)",
+        "is_primary": false
+      },
+      {
+        "variable": "workclass",
+        "role": "input",
+        "kind": "categorical",
+        "domain_range": null,
+        "method": "PSI",
+        "value": 0.03113643848674329,
+        "p_value": null,
+        "severity": "Estável (< 0.10)",
+        "is_primary": false
+      },
+      {
+        "variable": "occupation",
+        "role": "input",
+        "kind": "categorical",
+        "domain_range": null,
+        "method": "PSI",
+        "value": 0.14157587860248627,
+        "p_value": null,
+        "severity": "Atenção (0.10 a 0.25)",
+        "is_primary": true
+      },
+      {
+        "variable": "marital_status",
+        "role": "input",
+        "kind": "categorical",
+        "domain_range": null,
+        "method": "PSI",
+        "value": 0.015122426169995843,
+        "p_value": null,
+        "severity": "Estável (< 0.10)",
+        "is_primary": false
+      },
+      {
+        "variable": "probability_above_50k",
+        "role": "output",
+        "kind": "continuous",
+        "domain_range": null,
+        "method": "KS",
+        "value": 0.08600000000000002,
+        "p_value": 0.04950261174890187,
+        "severity": "Estável (< 0.10)",
+        "is_primary": true
+      },
+      {
+        "variable": "income_class_proxy",
+        "role": "output",
+        "kind": "categorical",
+        "domain_range": null,
+        "method": "PSI",
+        "value": 0.024647728042994844,
+        "p_value": null,
+        "severity": "Estável (< 0.10)",
+        "is_primary": false
+      }
+    ]
+  },
+  "counts": {
+    "benchmark_requests": 500,
+    "reference_samples": 500,
+    "production_samples": 500
+  },
+  "charts": {
+    "latency_boxplot": "docs/av2-p2/evidence/latency_boxplot.png",
+    "latency_violin": "docs/av2-p2/evidence/latency_violin.png",
+    "latency_overview": "docs/av2-p2/evidence/latency_boxplot_violin.png",
+    "drift_psi": "docs/av2-p2/evidence/drift_psi_occupation.png",
+    "drift_ks": "docs/av2-p2/evidence/drift_ks_probability.png"
+  }
+}
